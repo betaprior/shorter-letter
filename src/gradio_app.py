@@ -3,73 +3,58 @@ import json
 from functions import process_text_to_json
 
 STYLE_DEFINITIONS = {
-    "noun": "color: blue; font-weight: bold;",
-    "adjective": "color: orange; font-style: italic;",
-    "verb": "color: green; text-decoration: underline;",
-    "stop_word": "color: gray;"
+    "noun": "color: black; font-weight: bold;",
+    "adjective": "color: gray;",
+    "verb": "color: black; font-weight: bold;",
+    "stop_word": "color: gray;",
 }
 
-def apply_styles(text, styles, style_definitions):
+precomputed_styles = None
+text_content = None
+
+def apply_styles(text, styles, style_definitions, selected_styles):
     styled_text = ""
     last_end = 0
-    
+
     for style in styles:
         start = style['start']
         end = style['end']
         style_class = style['type']
-        style_def = style_definitions.get(style_class, "")
 
-        styled_text += text[last_end:start]
-
-        styled_text += f'<span style="{style_def}">{text[start:end]}</span>'
-
-        last_end = end
+        if style_class in selected_styles:
+            style_def = style_definitions.get(style_class, "")
+            styled_text += text[last_end:start]
+            styled_text += f'<span style="{style_def}">{text[start:end]}</span>'
+            last_end = end
 
     styled_text += text[last_end:]
+
+    return styled_text
+
+def process_text_and_apply_styles(text_file, selected_styles):
+    global precomputed_styles, text_content
+
+    if text_file is not None:
+        with open(text_file.name, 'r') as txt_f:
+            text_content = txt_f.read()
+        precomputed_styles = json.loads(process_text_to_json(text_content))
     
+    if precomputed_styles is None or text_content is None:
+        return ""
+    
+    styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
     return styled_text
 
-def load_and_apply_styles(text_file, json_file):
+with gr.Blocks(theme='JohnSmith9982/small_and_pretty') as demo:
+    text_input = gr.File(label="Text File")
+    style_checkbox = gr.CheckboxGroup(label="Select Styles to Apply", choices=["noun", "adjective", "verb", "stop_word"], value=["noun", "adjective", "verb", "stop_word"])
+    output = gr.HTML()
 
-    with open(text_file.name, 'r') as txt_f, open(json_file.name, 'r') as json_f:
-        text = txt_f.read()
-        json_content = json_f.read()
+    def update_styles(file, styles):
+        return process_text_and_apply_styles(file, styles)
 
-    json_data = json.loads(json_content)
-    styles = json_data['styles']
-    style_definitions = STYLE_DEFINITIONS
-
-    styled_text = apply_styles(text, styles, style_definitions)
-    return styled_text
-
-def process_text_and_apply_styles(text_file):
-    with open(text_file.name, 'r') as txt_f:
-        text = txt_f.read()
-
-    json_data = json.loads(process_text_to_json(text))
-    styles = json_data
-    style_definitions = STYLE_DEFINITIONS
-
-    styled_text = apply_styles(text, styles, style_definitions)
-    return styled_text
-
-def pass_html(text_file):
-    with open(text_file.name, 'r') as txt_f:
-        text = txt_f.read()
-    return text
-
-text_input = gr.File(label="Text File")
-json_input = gr.File(label="JSON File")
-output = gr.HTML()
-
-interface = gr.Interface(
-    fn=process_text_and_apply_styles,
-    inputs=[text_input],
-    outputs=output,
-    title="Text Styler",
-    description="Upload a text file and a JSON file with styling information.",
-    theme='JohnSmith9982/small_and_pretty',
-)
+    text_input.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
+    style_checkbox.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
 
 if __name__ == "__main__":
-    interface.launch()
+    demo.launch()
