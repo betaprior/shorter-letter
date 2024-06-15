@@ -1,6 +1,10 @@
 import gradio as gr
 import json
-from functions import process_text_to_json
+from functions_old import create_highlight_structure
+import html2text
+
+h = html2text.HTML2Text()
+h.ignore_links = True
 
 STYLE_DEFINITIONS = {
     "noun": "color: black; font-weight: bold;",
@@ -37,18 +41,20 @@ def process_text_and_apply_styles(text_file, selected_styles):
     if text_file is not None:
         with open(text_file.name, 'r') as txt_f:
             text_content = txt_f.read()
-        precomputed_styles = json.loads(process_text_to_json(text_content))
+        text_content = h.handle(text_content)
+        precomputed_styles = create_highlight_structure(text_content)
     
     if precomputed_styles is None or text_content is None:
         return ""
     
     styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
+    print(styled_text)
     return styled_text
 
 with gr.Blocks(theme='JohnSmith9982/small_and_pretty') as demo:
     text_input = gr.File(label="Text File")
     style_checkbox = gr.CheckboxGroup(label="Select Styles to Apply", choices=["noun", "adjective", "verb", "stop_word"], value=["noun", "adjective", "verb", "stop_word"])
-    output = gr.HTML()
+    output = gr.Markdown()
 
     def update_styles(file, styles):
         return process_text_and_apply_styles(file, styles)
