@@ -1,7 +1,11 @@
-import json
+import re
 from typing import TYPE_CHECKING
 
+import nltk
+
+nltk.download("words")
 import spacy
+from nltk.corpus import words
 
 if TYPE_CHECKING:
     from spacy.tokens import Doc
@@ -11,6 +15,14 @@ nlp = spacy.load("en_core_web_sm")
 
 
 HighlightElement = dict[str, int | str]
+
+
+def is_valid_word(token: str) -> bool:
+    # Regex to detect potential HTML tags
+    tag_pattern = re.compile(r"<[^>]+>")
+    if tag_pattern.match(token):
+        return False
+    return token.lower() in words.words()
 
 
 def create_highlight_structure(text: str) -> list[HighlightElement]:
@@ -29,18 +41,14 @@ def create_highlight_structure(text: str) -> list[HighlightElement]:
         else:
             continue
 
-        element: HighlightElement = {
-            "start": token.idx,
-            "end": token.idx + len(token),
-            "type": element_type,
-            "token": token.text,
-        }
-        highlight_structure.append(element)
+        if is_valid_word(token.text):
+            element: HighlightElement = {
+                "start": token.idx,
+                "end": token.idx + len(token),
+                "type": element_type,
+                "token": token.text,
+            }
+
+            highlight_structure.append(element)
 
     return highlight_structure
-
-
-# Function to process text and return JSON
-def process_text_to_json(text: str) -> str:
-    highlight_structure: list[HighlightElement] = create_highlight_structure(text)
-    return json.dumps(highlight_structure, indent=2)
