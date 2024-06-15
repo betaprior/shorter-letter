@@ -29,7 +29,12 @@ def create_highlight_structure(text: str) -> list[HighlightElement]:
         else:
             continue
 
-        element: HighlightElement = {"start": token.idx, "end": token.idx + len(token), "type": element_type}
+        element: HighlightElement = {
+            "start": token.idx,
+            "end": token.idx + len(token),
+            "type": element_type,
+            "token": token.text,
+        }
         highlight_structure.append(element)
 
     return highlight_structure
