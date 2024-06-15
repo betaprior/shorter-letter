@@ -63,8 +63,8 @@ json_input = gr.File(label="JSON File")
 output = gr.HTML()
 
 interface = gr.Interface(
-    fn=load_and_apply_styles,
-    inputs=[text_input, json_input],
+    fn=process_text_and_apply_styles,
+    inputs=[text_input],
     outputs=output,
     title="Text Styler",
     description="Upload a text file and a JSON file with styling information.",
