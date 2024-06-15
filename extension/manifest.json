@@ -1,0 +1,13 @@
+{
+    "manifest_version": 3,
+    "name": "Process and Redirect",
+    "version": "1.0",
+    "description": "Redirects to an API to process and render the current page.",
+    "permissions": [
+        "activeTab",
+        "tabs"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    }
+}
