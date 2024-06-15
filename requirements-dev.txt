@@ -6,4 +6,3 @@ pytest_mock>=3.14.0
 ruff>=0.4.9
 tomli>=2.0.1
 types-setuptools
-gradio

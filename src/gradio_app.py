@@ -1,9 +1,12 @@
 import gradio as gr
 import json
+from functions import process_text_to_json
 
 STYLE_DEFINITIONS = {
-    "stop_word": "opacity: 0.5;",
-    "noun": "font-weight: bold; color: blue;",
+    "noun": "color: blue; font-weight: bold;",
+    "adjective": "color: orange; font-style: italic;",
+    "verb": "color: green; text-decoration: underline;",
+    "stop_word": "color: gray;"
 }
 
 def apply_styles(text, styles, style_definitions):
@@ -39,6 +42,22 @@ def load_and_apply_styles(text_file, json_file):
     styled_text = apply_styles(text, styles, style_definitions)
     return styled_text
 
+def process_text_and_apply_styles(text_file):
+    with open(text_file.name, 'r') as txt_f:
+        text = txt_f.read()
+
+    json_data = json.loads(process_text_to_json(text))
+    styles = json_data
+    style_definitions = STYLE_DEFINITIONS
+
+    styled_text = apply_styles(text, styles, style_definitions)
+    return styled_text
+
+def pass_html(text_file):
+    with open(text_file.name, 'r') as txt_f:
+        text = txt_f.read()
+    return text
+
 text_input = gr.File(label="Text File")
 json_input = gr.File(label="JSON File")
 output = gr.HTML()
@@ -48,7 +67,8 @@ interface = gr.Interface(
     inputs=[text_input, json_input],
     outputs=output,
     title="Text Styler",
-    description="Upload a text file and a JSON file with styling information."
+    description="Upload a text file and a JSON file with styling information.",
+    theme='JohnSmith9982/small_and_pretty',
 )
 
 if __name__ == "__main__":
