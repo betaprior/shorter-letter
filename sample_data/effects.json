@@ -1,0 +1,14 @@
+{
+    "styles": [
+        {
+            "start": 0,
+            "end": 3,
+            "type": "stop_word"
+        },
+        {
+            "start": 16,
+            "end": 19,
+            "type": "noun"
+        }
+    ]
+}
