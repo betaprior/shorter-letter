@@ -9,6 +9,9 @@ STYLE_DEFINITIONS = {
     "stop_word": "color: gray;",
 }
 
+precomputed_styles = None
+text_content = None
+
 def apply_styles(text, styles, style_definitions, selected_styles):
     styled_text = ""
     last_end = 0
@@ -29,16 +32,17 @@ def apply_styles(text, styles, style_definitions, selected_styles):
     return styled_text
 
 def process_text_and_apply_styles(text_file, selected_styles):
-    if text_file is None:
+    global precomputed_styles, text_content
+
+    if text_file is not None:
+        with open(text_file.name, 'r') as txt_f:
+            text_content = txt_f.read()
+        precomputed_styles = json.loads(process_text_to_json(text_content))
+    
+    if precomputed_styles is None or text_content is None:
         return ""
-    with open(text_file.name, 'r') as txt_f:
-        text = txt_f.read()
-
-    json_data = json.loads(process_text_to_json(text))
-    styles = json_data
-    style_definitions = STYLE_DEFINITIONS
-
-    styled_text = apply_styles(text, styles, style_definitions, selected_styles)
+    
+    styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
     return styled_text
 
 with gr.Blocks(theme='JohnSmith9982/small_and_pretty') as demo:
@@ -46,8 +50,11 @@ with gr.Blocks(theme='JohnSmith9982/small_and_pretty') as demo:
     style_checkbox = gr.CheckboxGroup(label="Select Styles to Apply", choices=["noun", "adjective", "verb", "stop_word"], value=["noun", "adjective", "verb", "stop_word"])
     output = gr.HTML()
 
-    text_input.change(process_text_and_apply_styles, inputs=[text_input, style_checkbox], outputs=output)
-    style_checkbox.change(process_text_and_apply_styles, inputs=[text_input, style_checkbox], outputs=output)
+    def update_styles(file, styles):
+        return process_text_and_apply_styles(file, styles)
+
+    text_input.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
+    style_checkbox.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
 
 if __name__ == "__main__":
     demo.launch()
