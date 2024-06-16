@@ -24,8 +24,8 @@ STYLE_DEFINITIONS = {
 
 
 STYLE_DEFINITIONS_SENTENCE = {
-    "top": "color: red; font-weight: bold;",  # Bright red for emphasis
-    "bottom": "color: lightgray;",  # Light gray to deemphasize stop words
+    "top": "color: black; font-weight: bold;",
+    "bottom": "color: lightgray;",
 }
 
 custom_css = """
@@ -123,7 +123,7 @@ def get_cosine_similarity(orig, summary):
 
 from src.tmp import summary as die_summary
 
-def fetch_text_style_by_sentence_relevance(url, style_definitions):
+def fetch_text_style_by_sentence_relevance(url, style_definitions, threshold):
     if url is None:
         return "", gr.update(visible=True)
 
@@ -133,27 +133,17 @@ def fetch_text_style_by_sentence_relevance(url, style_definitions):
     summary = get_text_summary(text_content)
     print(summary)
     sentences, relevances = get_cosine_similarity(text_content, summary)
-    quantiles = np.quantile(relevances, [0.25, 0.5, 0.75, 1.0])
-    quantile_labels = np.searchsorted(quantiles, relevances, side='right')
-    max_label = max(quantile_labels)
-
-    quantile_labels_normalized = quantile_labels / max_label
-
+    print(len(sentences))
     styled_text = []
     for i, sentence in enumerate(sentences):
-        # if quantile_labels[i] == 3:
-        #     style_def = style_definitions.get("top", "")
-        #     styled_text.append(f'<span style="{style_def}">{sentence}</span>')
-        # elif quantile_labels[i] == 0:
-        #     style_def = style_definitions.get("bottom", "")
-        #     styled_text.append(f'<span style="{style_def}">{sentence}</span>')
-        # else:
-        #     styled_text.append(f"{sentence}")
-        if quantile_labels_normalized[i] < 0.5:
-            style_def = style_definitions.get("bottom", "")
+        if relevances[i] >= threshold:
+            style_def = style_definitions.get("top", "")
             styled_text.append(f'<span style="{style_def}">{sentence}</span>')
         else:
-            styled_text.append(f"{sentence}")
+            style_def = style_definitions.get("bottom", "")
+            styled_text.append(f'<span style="{style_def}">{sentence}</span>')
+
+    print(len(styled_text))
 
     return " ".join(styled_text)
 
@@ -161,14 +151,15 @@ with gr.Blocks(theme="JohnSmith9982/small_and_pretty", css=custom_css) as demo:
     user_input = gr.Textbox(
         value="https://www.paulgraham.com/die.html", label="User Input", placeholder="Enter url here..."
     )
+    threshold_slider = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.5, label="Threshold for Bottom Style")
     run_button = gr.Button(value="Run")
     output = gr.Markdown()
 
-    def get_styled_text(url):
-        return fetch_text_style_by_sentence_relevance(url, STYLE_DEFINITIONS_SENTENCE)
+    def get_styled_text(url, threshold):
+        return fetch_text_style_by_sentence_relevance(url, STYLE_DEFINITIONS_SENTENCE, threshold)
 
     run_button.click(
-        fn=get_styled_text, inputs=[user_input], outputs=[output]
+        fn=get_styled_text, inputs=[user_input, threshold_slider], outputs=[output]
     )
 
 if __name__ == "__main__":

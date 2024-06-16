@@ -22,9 +22,8 @@ STYLE_DEFINITIONS = {
     "stop_word": "color: lightgray;",  # Light gray to deemphasize stop words
 }
 
-
 STYLE_DEFINITIONS_SENTENCE = {
-    "top": "color: red; font-weight: bold;",  # Bright red for emphasis
+    "top": "color: black;",  # Bright red for emphasis
     "bottom": "color: lightgray;",  # Light gray to deemphasize stop words
 }
 
@@ -49,6 +48,8 @@ em {
 
 precomputed_styles = None
 text_content = None
+stored_sentences = None
+stored_relevances = None
 
 
 def apply_styles(text, styles, style_definitions, selected_styles):
@@ -93,19 +94,21 @@ def update_styles(selected_styles):
     styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
     return styled_text
 
+
 def get_sentence_embeddings(doc):
     nlpdoc = nlp(doc)
     sentences = [sent.text for sent in nlpdoc.sents]
     return sentences, model.encode(sentences)
 
+
 def get_closest_to_summary(orig, summary, invert=False):
     summary_embedding = model.encode(summary)
     sentence_embeddings = get_sentence_embeddings(orig)
     rankings = cosine_similarity(sentence_embeddings, [summary_embedding]).T[0]
-    # get top indexes
     if invert:
         rankings = -rankings
     return np.argsort(-rankings)
+
 
 def get_top_n_sentences(orig, summary, n, invert=False):
     ranked_sent_idxs = get_closest_to_summary(orig, summary)
@@ -115,60 +118,70 @@ def get_top_n_sentences(orig, summary, n, invert=False):
     orig_sentences = [sent.text for sent in nlpdoc.sents]
     return [orig_sentences[i] for i in ranked_sent_idxs[:n]]
 
+
 def get_cosine_similarity(orig, summary):
     summary_embedding = model.encode(summary)
     sentences, sentence_embeddings = get_sentence_embeddings(orig)
     return sentences, cosine_similarity(sentence_embeddings, [summary_embedding]).T[0]
 
 
-from src.tmp import summary as die_summary
+def fetch_text_style_by_sentence_relevance(url, style_definitions, threshold):
+    global stored_sentences, stored_relevances, text_content
 
-def fetch_text_style_by_sentence_relevance(url, style_definitions):
     if url is None:
         return "", gr.update(visible=True)
 
     response = requests.get(url)
     text_content = h.handle(response.text)
-    # summary = die_summary
     summary = get_text_summary(text_content)
     print(summary)
     sentences, relevances = get_cosine_similarity(text_content, summary)
-    quantiles = np.quantile(relevances, [0.25, 0.5, 0.75, 1.0])
-    quantile_labels = np.searchsorted(quantiles, relevances, side='right')
-    max_label = max(quantile_labels)
+    
+    stored_sentences = sentences
+    stored_relevances = relevances
 
-    quantile_labels_normalized = quantile_labels / max_label
+    return apply_threshold_to_styling(sentences, relevances, style_definitions, threshold)
 
+
+def apply_threshold_to_styling(sentences, relevances, style_definitions, threshold):
     styled_text = []
     for i, sentence in enumerate(sentences):
-        # if quantile_labels[i] == 3:
-        #     style_def = style_definitions.get("top", "")
-        #     styled_text.append(f'<span style="{style_def}">{sentence}</span>')
-        # elif quantile_labels[i] == 0:
-        #     style_def = style_definitions.get("bottom", "")
-        #     styled_text.append(f'<span style="{style_def}">{sentence}</span>')
-        # else:
-        #     styled_text.append(f"{sentence}")
-        if quantile_labels_normalized[i] < 0.5:
-            style_def = style_definitions.get("bottom", "")
+        if relevances[i] >= threshold:
+            style_def = style_definitions.get("top", "")
             styled_text.append(f'<span style="{style_def}">{sentence}</span>')
         else:
-            styled_text.append(f"{sentence}")
+            style_def = style_definitions.get("bottom", "")
+            styled_text.append(f'<span style="{style_def}">{sentence}</span>')
 
     return " ".join(styled_text)
+
+
+def update_threshold(threshold):
+    global stored_sentences, stored_relevances
+
+    if stored_sentences is None or stored_relevances is None:
+        return ""
+
+    return apply_threshold_to_styling(stored_sentences, stored_relevances, STYLE_DEFINITIONS_SENTENCE, threshold)
+
 
 with gr.Blocks(theme="JohnSmith9982/small_and_pretty", css=custom_css) as demo:
     user_input = gr.Textbox(
         value="https://www.paulgraham.com/die.html", label="User Input", placeholder="Enter url here..."
     )
+    threshold_slider = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.5, label="Threshold for Bottom Style")
     run_button = gr.Button(value="Run")
     output = gr.Markdown()
 
-    def get_styled_text(url):
-        return fetch_text_style_by_sentence_relevance(url, STYLE_DEFINITIONS_SENTENCE)
+    def get_styled_text(url, threshold):
+        return fetch_text_style_by_sentence_relevance(url, STYLE_DEFINITIONS_SENTENCE, threshold)
 
     run_button.click(
-        fn=get_styled_text, inputs=[user_input], outputs=[output]
+        fn=get_styled_text, inputs=[user_input, threshold_slider], outputs=[output]
+    )
+
+    threshold_slider.change(
+        fn=update_threshold, inputs=[threshold_slider], outputs=[output]
     )
 
 if __name__ == "__main__":
