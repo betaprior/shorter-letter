@@ -2,6 +2,8 @@
 
 Colorize texts as you colorize code
 
+![thumb](./sample_data/dont-die.png)
+
 ## Installation
 
 ```bash
