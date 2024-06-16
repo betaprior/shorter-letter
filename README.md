@@ -14,3 +14,10 @@ python -m spacy download en_core_web_sm
 python src/gradio_app.py
 
 Choose: `sample_data/input.txt` and `sample_data/effects.json`
+
+
+Specify OPENAI KEY as environmental variable with:
+
+```bash
+export OPENAI_API_KEY=<key>
+```
