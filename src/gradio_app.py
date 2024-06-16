@@ -2,6 +2,7 @@ import gradio as gr
 import json
 from functions_old import create_highlight_structure
 import html2text
+import requests
 
 h = html2text.HTML2Text()
 h.ignore_links = True
@@ -35,32 +36,35 @@ def apply_styles(text, styles, style_definitions, selected_styles):
 
     return styled_text
 
-def process_text_and_apply_styles(text_file, selected_styles):
+def fetch_text_and_apply_styles(url, selected_styles):
     global precomputed_styles, text_content
 
-    if text_file is not None:
-        with open(text_file.name, 'r') as txt_f:
-            text_content = txt_f.read()
-        text_content = h.handle(text_content)
+    if url is not None:
+        response = requests.get(url)
+        text_content = h.handle(response.text)
         precomputed_styles = create_highlight_structure(text_content)
     
+    if precomputed_styles is None or text_content is None:
+        return "", gr.update(visible=True)
+    
+    styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
+    return styled_text, gr.update(visible=True)
+
+def update_styles(selected_styles):
     if precomputed_styles is None or text_content is None:
         return ""
     
     styled_text = apply_styles(text_content, precomputed_styles, STYLE_DEFINITIONS, selected_styles)
-    print(styled_text)
     return styled_text
 
 with gr.Blocks(theme='JohnSmith9982/small_and_pretty') as demo:
-    text_input = gr.File(label="Text File")
-    style_checkbox = gr.CheckboxGroup(label="Select Styles to Apply", choices=["noun", "adjective", "verb", "stop_word"], value=["noun", "adjective", "verb", "stop_word"])
+    user_input = gr.Textbox(value="https://www.paulgraham.com/die.html", label="User Input", placeholder="Enter url here...")
+    run_button = gr.Button(value="Run")
+    style_checkbox = gr.CheckboxGroup(label="Select Styles to Apply", choices=["noun", "adjective", "verb", "stop_word"], value=["noun", "adjective", "verb", "stop_word"], visible=False)
     output = gr.Markdown()
 
-    def update_styles(file, styles):
-        return process_text_and_apply_styles(file, styles)
-
-    text_input.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
-    style_checkbox.change(fn=update_styles, inputs=[text_input, style_checkbox], outputs=output)
+    run_button.click(fn=fetch_text_and_apply_styles, inputs=[user_input, style_checkbox], outputs=[output, style_checkbox])
+    style_checkbox.change(fn=update_styles, inputs=style_checkbox, outputs=output)
 
 if __name__ == "__main__":
     demo.launch()
